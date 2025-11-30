@@ -17,67 +17,153 @@ void FCFS(std::vector<PCB> &ready_queue) {
             );
 }
 
-std::tuple<std::string /* add std::string for bonus mark */ > run_simulation(std::vector<PCB> list_processes) {
+//// ===== CHANGE START: Implemented EP + RR scheduler run_simulation (quantum = 100 ms) =====
+const unsigned int RR_QUANTUM = 100; // 100 ms quantum
 
-    std::vector<PCB> ready_queue;   //The ready queue of processes
-    std::vector<PCB> wait_queue;    //The wait queue of processes
-    std::vector<PCB> job_list;      //A list to keep track of all the processes. This is similar
-                                    //to the "Process, Arrival time, Burst time" table that you
-                                    //see in questions. You don't need to use it, I put it here
-                                    //to make the code easier :).
+std::tuple<std::string> run_simulation(std::vector<PCB> list_processes) {
+    std::vector<PCB> ready_queue;                     // ready processes
+    std::vector<PCB> job_list;                        // all processes created/seen
+    std::vector<std::pair<int, unsigned int>> io_list; // (PID, io_complete_time)
 
     unsigned int current_time = 0;
     PCB running;
-
-    //Initialize an empty running process
     idle_CPU(running);
 
-    std::string execution_status;
+    std::string execution_status = print_exec_header();
 
-    //make the output table (the header row)
-    execution_status = print_exec_header();
+    auto find_job_idx = [&](int pid)->int {
+        for (size_t i = 0; i < job_list.size(); ++i)
+            if (job_list[i].PID == pid) return (int)i;
+        return -1;
+    };
 
-    //Loop while till there are no ready or waiting processes.
-    //This is the main reason I have job_list, you don't have to use it.
-    while(!all_process_terminated(job_list) || job_list.empty()) {
+    unsigned int running_quantum_used = 0;
 
-        //Inside this loop, there are three things you must do:
-        // 1) Populate the ready queue with processes as they arrive
-        // 2) Manage the wait queue
-        // 3) Schedule processes from the ready queue
+    while (true) {
+        // 1) arrivals
+        for (auto &p : list_processes) {
+            if (p.arrival_time == current_time) {
+                PCB newproc = p;
+                execution_status += print_exec_status(current_time, newproc.PID, NEW, NEW);
 
-        //Population of ready queue is given to you as an example.
-        //Go through the list of proceeses
-        for(auto &process : list_processes) {
-            if(process.arrival_time == current_time) {//check if the AT = current time
-                //if so, assign memory and put the process into the ready queue
-                assign_memory(process);
+                bool allocated = assign_memory(newproc);
+                job_list.push_back(newproc);
+                int jidx = (int)job_list.size() - 1;
 
-                process.state = READY;  //Set the process state to READY
-                ready_queue.push_back(process); //Add the process to the ready queue
-                job_list.push_back(process); //Add it to the list of processes
-
-                execution_status += print_exec_status(current_time, process.PID, NEW, READY);
+                if (allocated) {
+                    job_list[jidx].state = READY;
+                    if (job_list[jidx].next_io_time == 0) job_list[jidx].next_io_time = (job_list[jidx].io_freq > 0 ? job_list[jidx].io_freq : NO_IO);
+                    ready_queue.push_back(job_list[jidx]);
+                    execution_status += print_exec_status(current_time, job_list[jidx].PID, NEW, READY);
+                } else {
+                    job_list[jidx].state = NEW;
+                    execution_status += std::string("    No memory available for PID ") + std::to_string(job_list[jidx].PID) + "\n";
+                }
             }
         }
 
-        ///////////////////////MANAGE WAIT QUEUE/////////////////////////
-        //This mainly involves keeping track of how long a process must remain in the ready queue
+        // 2) I/O completions
+        for (auto it = io_list.begin(); it != io_list.end();) {
+            if (it->second == current_time) {
+                int pid = it->first;
+                int jidx = find_job_idx(pid);
+                if (jidx != -1) {
+                    execution_status += print_exec_status(current_time, job_list[jidx].PID, WAITING, READY);
+                    job_list[jidx].state = READY;
+                    job_list[jidx].next_io_time = (job_list[jidx].io_freq > 0 ? current_time + job_list[jidx].io_freq : NO_IO);
+                    ready_queue.push_back(job_list[jidx]);
+                }
+                it = io_list.erase(it);
+            } else ++it;
+        }
 
-        /////////////////////////////////////////////////////////////////
+        // 3) Dispatch if CPU idle or preempt for higher priority
+        if (!ready_queue.empty()) {
+            bool preempt = false;
+            if (running.state == RUNNING && running.PID != -1) {
+                // check for higher priority
+                auto highest_priority_it = std::min_element(ready_queue.begin(), ready_queue.end(),
+                    [](const PCB &a, const PCB &b){
+                        if (a.priority != b.priority) return a.priority < b.priority;
+                        return a.arrival_time < b.arrival_time;
+                    });
+                if (highest_priority_it->priority < running.priority) {
+                    // preempt current
+                    preempt = true;
+                }
+            }
 
-        //////////////////////////SCHEDULER//////////////////////////////
-        FCFS(ready_queue); //example of FCFS is shown here
-        /////////////////////////////////////////////////////////////////
+            if (running.state != RUNNING || preempt || running.time_in_current_quantum >= RR_QUANTUM) {
+                if (running.state == RUNNING && running.PID != -1) {
+                    int jidx = find_job_idx(running.PID);
+                    if (jidx != -1) {
+                        job_list[jidx].state = READY;
+                        job_list[jidx].time_in_current_quantum = 0;
+                        ready_queue.push_back(job_list[jidx]);
+                        execution_status += print_exec_status(current_time, running.PID, RUNNING, READY);
+                    }
+                }
+                // select next process by EP priority
+                auto next_it = std::min_element(ready_queue.begin(), ready_queue.end(),
+                    [](const PCB &a, const PCB &b){
+                        if (a.priority != b.priority) return a.priority < b.priority;
+                        return a.arrival_time < b.arrival_time;
+                    });
+                PCB sel = *next_it;
+                ready_queue.erase(next_it);
 
+                sel.state = RUNNING;
+                if (sel.start_time == -1) sel.start_time = (int)current_time;
+                sel.time_in_current_quantum = 0;
+                running = sel;
+                int jidx = find_job_idx(running.PID);
+                if (jidx != -1) {
+                    job_list[jidx].state = RUNNING;
+                    job_list[jidx].start_time = running.start_time;
+                }
+                running_quantum_used = 0;
+                execution_status += print_exec_status(current_time, running.PID, READY, RUNNING);
+            }
+        }
+
+        // 4) advance CPU 1 ms
+        if (running.state == RUNNING && running.PID != -1) {
+            if (running.remaining_time > 0) running.remaining_time -= 1;
+            running.time_in_current_quantum++;
+            int jidx = find_job_idx(running.PID);
+            if (jidx != -1) job_list[jidx].remaining_time = running.remaining_time;
+
+            // I/O request
+            if (running.io_freq > 0 && running.next_io_time != NO_IO && current_time + 1 == running.next_io_time) {
+                execution_status += print_exec_status(current_time + 1, running.PID, RUNNING, WAITING);
+                if (jidx != -1) {
+                    job_list[jidx].state = WAITING;
+                    job_list[jidx].next_io_time = NO_IO;
+                    io_list.emplace_back(job_list[jidx].PID, current_time + 1 + job_list[jidx].io_duration);
+                }
+                idle_CPU(running);
+            } else if (running.remaining_time == 0) {
+                execution_status += print_exec_status(current_time + 1, running.PID, RUNNING, TERMINATED);
+                if (jidx != -1) {
+                    job_list[jidx].state = TERMINATED;
+                    free_memory(job_list[jidx]);
+                }
+                idle_CPU(running);
+            }
+        }
+
+        // termination
+        bool all_arrived = true;
+        for (auto &p : list_processes) if (p.arrival_time > current_time) { all_arrived = false; break; }
+        if (all_arrived && all_process_terminated(job_list)) break;
+
+        current_time++;
     }
-    
-    //Close the output table
-    execution_status += print_exec_footer();
 
+    execution_status += print_exec_footer();
     return std::make_tuple(execution_status);
 }
-
+//// ===== CHANGE END =====
 
 int main(int argc, char** argv) {
 
