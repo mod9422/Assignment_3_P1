@@ -8,37 +8,23 @@
 #ifndef INTERRUPTS_HPP_
 #define INTERRUPTS_HPP_
 
-#include<iostream>
-#include<fstream>
-#include<string>
-#include<vector>
-#include<tuple>
-#include<random>
-#include<utility>
-#include<sstream>
-#include<iomanip>
-#include<algorithm>
+#include <iostream>
+#include <fstream>
+#include <string>
+#include <vector>
+#include <tuple>
+#include <random>
+#include <utility>
+#include <sstream>
+#include <iomanip>
+#include <algorithm>
 static const unsigned int NO_IO = 999999999;   // to indicate "no IO scheduled"
 
 //An enumeration of states to make assignment easier
-enum states {
-    NEW,
-    READY,
-    RUNNING,
-    WAITING,
-    TERMINATED,
-    NOT_ASSIGNED
-};
+enum states {NEW, READY, RUNNING, WAITING, TERMINATED, NOT_ASSIGNED};
 std::ostream& operator<<(std::ostream& os, const enum states& s) { //Overloading the << operator to make printing of the enum easier
 
-	std::string state_names[] = {
-                                "NEW",
-                                "READY",
-                                "RUNNING",
-                                "WAITING",
-                                "TERMINATED",
-                                "NOT_ASSIGNED"
-    };
+	std::string state_names[] = {"NEW", "READY", "RUNNING", "WAITING", "TERMINATED", "NOT_ASSIGNED"};
     return (os << state_names[s]);
 }
 
@@ -56,25 +42,24 @@ struct memory_partition{
 };
 
 struct PCB{
-    int             PID;
-    unsigned int    size;
-    unsigned int    arrival_time;
-    int             start_time;
-    unsigned int    processing_time;
-    unsigned int    remaining_time;
-    int             partition_number;
-    enum states     state;
-    unsigned int    io_freq;
-    unsigned int    io_duration;
-	int             priority;               // for EP scheduling
-    unsigned int    next_io_time;           // next IO interrupt time or NO_IO
-    unsigned int    time_in_current_quantum;
-    unsigned int    response_time;
-    bool            response_recorded;
+    int PID;
+    unsigned int size;
+    unsigned int arrival_time;
+    int start_time;
+    unsigned int processing_time;
+    unsigned int remaining_time;
+    int partition_number;
+    enum states state;
+    unsigned int io_freq;
+    unsigned int io_duration;
+	int priority; // for EP scheduling
+    unsigned int next_io_time; // next IO interrupt time or NO_IO
+    unsigned int time_in_current_quantum;
+    unsigned int response_time;
+    bool response_recorded;
 };
 
-//------------------------------------HELPER FUNCTIONS FOR THE SIMULATOR------------------------------
-// Following function was taken from stackoverflow; helper function for splitting strings
+// Helper function for splitting strings
 std::vector<std::string> split_delim(std::string input, std::string delim) {
     std::vector<std::string> tokens;
     std::size_t pos = 0;
@@ -89,7 +74,7 @@ std::vector<std::string> split_delim(std::string input, std::string delim) {
     return tokens;
 }
 
-//Function that takes a queue as an input and outputs a string table of PCBs
+// Function that takes a queue as an input and outputs a string table of PCBs
 std::string print_PCB(std::vector<PCB> _PCB) {
     const int tableWidth = 83;
 
@@ -143,7 +128,7 @@ std::string print_PCB(std::vector<PCB> _PCB) {
     return buffer.str();
 }
 
-//Overloaded function that takes a single PCB as input
+// Overloaded function that takes a single PCB as input
 std::string print_PCB(PCB _PCB) {
     std::vector<PCB> temp;
     temp.push_back(_PCB);
@@ -206,7 +191,7 @@ std::string print_exec_footer() {
     return buffer.str();
 }
 
-//Synchronize the process in the process queue
+// Synchronize the process in the process queue
 void sync_queue(std::vector<PCB> &process_queue, PCB _process) {
     for(auto &process : process_queue) {
         if(process.PID == _process.PID) {
@@ -215,7 +200,7 @@ void sync_queue(std::vector<PCB> &process_queue, PCB _process) {
     }
 }
 
-//Writes a string to a file
+// Writes a string to a file
 void write_output(std::string execution, const char* filename) {
     std::ofstream output_file(filename);
 
@@ -230,9 +215,9 @@ void write_output(std::string execution, const char* filename) {
     std::cout << "Output generated in " << filename << ".txt" << std::endl;
 }
 
-//--------------------------------------------FUNCTIONS FOR THE "OS"-------------------------------------
+// FUNCTIONS FOR THE "OS"
 
-//Assign memory partition to program
+// Assign memory partition to program
 bool assign_memory(PCB &program) {
     int size_to_fit = program.size;
     int available_size = 0;
@@ -250,7 +235,7 @@ bool assign_memory(PCB &program) {
     return false;
 }
 
-//Free a memory partition
+// Free a memory partition
 bool free_memory(PCB &program){
     for(int i = 5; i >= 0; i--) {
         if(program.PID == memory_paritions[i].occupied) {
@@ -262,7 +247,7 @@ bool free_memory(PCB &program){
     return false;
 }
 
-//Convert a list of strings into a PCB
+// Convert a list of strings into a PCB
 PCB add_process(std::vector<std::string> tokens) {
     PCB process;
     process.PID = std::stoi(tokens[0]);
@@ -284,7 +269,7 @@ PCB add_process(std::vector<std::string> tokens) {
     return process;
 }
 
-//Returns true if all processes in the queue have terminated
+// Returns true if all processes in the queue have terminated
 bool all_process_terminated(std::vector<PCB> processes) {
 
     for(auto process : processes) {
@@ -296,7 +281,7 @@ bool all_process_terminated(std::vector<PCB> processes) {
     return true;
 }
 
-//Terminates a given process
+// Terminates a given process
 void terminate_process(PCB &running, std::vector<PCB> &job_queue) {
     running.remaining_time = 0;
     running.state = TERMINATED;
@@ -304,7 +289,7 @@ void terminate_process(PCB &running, std::vector<PCB> &job_queue) {
     sync_queue(job_queue, running);
 }
 
-//set the process in the ready queue to runnning
+// Set the process in the ready queue to runnning
 void run_process(PCB &running, std::vector<PCB> &job_queue, std::vector<PCB> &ready_queue, unsigned int current_time) {
     running = ready_queue.back();
     ready_queue.pop_back();

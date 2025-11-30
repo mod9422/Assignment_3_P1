@@ -5,7 +5,7 @@
  * 
  */
 
-#include<interrupts_student1_student2.hpp>
+#include <interrupts_101256959_101310113.hpp>
 
 void FCFS(std::vector<PCB> &ready_queue) {
     std::sort( 
@@ -20,8 +20,8 @@ void FCFS(std::vector<PCB> &ready_queue) {
 //// ===== CHANGE START: Implemented EP scheduler run_simulation (no preemption) =====
 std::tuple<std::string> run_simulation(std::vector<PCB> list_processes) {
 
-    std::vector<PCB> ready_queue;                     // processes that are ready
-    std::vector<PCB> job_list;                        // all processes that have been created/seen
+    std::vector<PCB> ready_queue; // processes that are ready
+    std::vector<PCB> job_list; // all processes that have been created/seen
     std::vector<std::pair<int, unsigned int>> io_list; // (PID, io_complete_time)
 
     unsigned int current_time = 0;
@@ -30,7 +30,7 @@ std::tuple<std::string> run_simulation(std::vector<PCB> list_processes) {
 
     std::string execution_status = print_exec_header();
 
-    // helper: find index in job_list by PID
+    // Helper function to find index in job_list by PID
     auto find_job_idx = [&](int pid)->int {
         for (size_t i = 0; i < job_list.size(); ++i) {
             if (job_list[i].PID == pid) return (int)i;
@@ -38,7 +38,7 @@ std::tuple<std::string> run_simulation(std::vector<PCB> list_processes) {
         return -1;
     };
 
-    // helper: build memory snapshot string
+    // Helper function to build memory snapshot string
     auto memory_snapshot = [&]()->std::string {
         std::stringstream ss;
         unsigned int used = 0, total = 0, usable = 0;
@@ -55,7 +55,7 @@ std::tuple<std::string> run_simulation(std::vector<PCB> list_processes) {
 
     while (true) {
 
-        // 1) arrivals
+        // Arrivals
         for (auto &p : list_processes) {
             if (p.arrival_time == current_time) {
                 // create a job_list entry (we copy p so we can modify fields like partition & state)
@@ -84,7 +84,7 @@ std::tuple<std::string> run_simulation(std::vector<PCB> list_processes) {
             }
         }
 
-        // 2) I/O completions
+        // I/O completions
         for (auto it = io_list.begin(); it != io_list.end();) {
             if (it->second == current_time) {
                 int pid = it->first;
@@ -99,7 +99,7 @@ std::tuple<std::string> run_simulation(std::vector<PCB> list_processes) {
             } else ++it;
         }
 
-        // 3) if CPU is idle, dispatch highest-priority READY (no preemption)
+        // If CPU is idle, dispatch highest-priority READY (no preemption)
         if (running.state != RUNNING) {
             if (!ready_queue.empty()) {
                 // sort by priority (lower number = higher priority); tie-breaker arrival_time
@@ -126,7 +126,7 @@ std::tuple<std::string> run_simulation(std::vector<PCB> list_processes) {
             }
         }
 
-        // 4) advance CPU (1 ms step)
+        // Advance CPU (1 ms step)
         if (running.state == RUNNING && running.PID != -1) {
             // consume 1 ms
             if (running.remaining_time > 0) running.remaining_time -= 1;
@@ -158,7 +158,7 @@ std::tuple<std::string> run_simulation(std::vector<PCB> list_processes) {
             }
         }
 
-        // termination condition: no future arrivals AND all seen jobs terminated
+        // Termination condition: no future arrivals AND all seen jobs terminated
         bool all_arrived = true;
         for (auto &p : list_processes) if (p.arrival_time > current_time) { all_arrived = false; break; }
         if (all_arrived && all_process_terminated(job_list)) break;
@@ -169,30 +169,29 @@ std::tuple<std::string> run_simulation(std::vector<PCB> list_processes) {
     execution_status += print_exec_footer();
     return std::make_tuple(execution_status);
 }
-//// ===== CHANGE END =====
 
 int main(int argc, char** argv) {
 
-    //Get the input file from the user
+    // Get the input file from the user
     if(argc != 2) {
         std::cout << "ERROR!\nExpected 1 argument, received " << argc - 1 << std::endl;
         std::cout << "To run the program, do: ./interrutps <your_input_file.txt>" << std::endl;
         return -1;
     }
 
-    //Open the input file
+    // Open the input file
     auto file_name = argv[1];
     std::ifstream input_file;
     input_file.open(file_name);
 
-    //Ensure that the file actually opens
+    // Ensure that the file actually opens
     if (!input_file.is_open()) {
         std::cerr << "Error: Unable to open file: " << file_name << std::endl;
         return -1;
     }
 
-    //Parse the entire input file and populate a vector of PCBs.
-    //To do so, the add_process() helper function is used (see include file).
+    // Parse the entire input file and populate a vector of PCBs.
+    // To do so, the add_process() helper function is used (see include file).
     std::string line;
     std::vector<PCB> list_process;
     while(std::getline(input_file, line)) {
@@ -202,7 +201,7 @@ int main(int argc, char** argv) {
     }
     input_file.close();
 
-    //With the list of processes, run the simulation
+    // With the list of processes, run the simulation
     auto [exec] = run_simulation(list_process);
 
     write_output(exec, "execution.txt");

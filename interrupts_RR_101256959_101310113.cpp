@@ -5,7 +5,7 @@
  * 
  */
 
-#include<interrupts_student1_student2.hpp>
+#include <interrupts_101256959_101310113.hpp>
 
 void FCFS(std::vector<PCB> &ready_queue) {
     std::sort( 
@@ -21,8 +21,8 @@ void FCFS(std::vector<PCB> &ready_queue) {
 const unsigned int RR_QUANTUM = 100; 
 
 std::tuple<std::string> run_simulation(std::vector<PCB> list_processes) {
-    std::vector<PCB> ready_queue;                     // ready processes
-    std::vector<PCB> job_list;                        // all processes that have been created/seen
+    std::vector<PCB> ready_queue; // ready processes
+    std::vector<PCB> job_list; // all processes that have been created/seen
     std::vector<std::pair<int, unsigned int>> io_list; // (PID, io_complete_time)
 
     unsigned int current_time = 0;
@@ -41,7 +41,7 @@ std::tuple<std::string> run_simulation(std::vector<PCB> list_processes) {
     unsigned int running_quantum_used = 0;
 
     while (true) {
-        // arrivals
+        // Arrivals
         for (auto &p : list_processes) {
             if (p.arrival_time == current_time) {
                 PCB newproc = p;
@@ -80,7 +80,7 @@ std::tuple<std::string> run_simulation(std::vector<PCB> list_processes) {
             } else ++it;
         }
 
-        // dispatch if CPU idle
+        // Dispatch if CPU idle
         if (running.state != RUNNING) {
             if (!ready_queue.empty()) {
                 PCB sel = ready_queue.front();
@@ -97,7 +97,7 @@ std::tuple<std::string> run_simulation(std::vector<PCB> list_processes) {
             }
         }
 
-        // run one ms
+        // Run one ms
         if (running.state == RUNNING && running.PID != -1) {
             if (running.remaining_time > 0) running.remaining_time -= 1;
             running.time_in_current_quantum++;
@@ -110,7 +110,7 @@ std::tuple<std::string> run_simulation(std::vector<PCB> list_processes) {
                 job_list[jidx].time_in_current_quantum = running.time_in_current_quantum;
             }
 
-            // I/O start?
+            // I/O start
             if (running.io_freq > 0 && running.next_io_time != NO_IO && current_time + 1 == running.next_io_time) {
                 // RUNNING -> WAITING
                 execution_status += print_exec_status(current_time + 1, running.PID, RUNNING, WAITING);
@@ -154,30 +154,29 @@ std::tuple<std::string> run_simulation(std::vector<PCB> list_processes) {
     execution_status += print_exec_footer();
     return std::make_tuple(execution_status);
 }
-//// ===== CHANGE END =====
 
 int main(int argc, char** argv) {
 
-    //Get the input file from the user
+    // Get the input file from the user
     if(argc != 2) {
         std::cout << "ERROR!\nExpected 1 argument, received " << argc - 1 << std::endl;
         std::cout << "To run the program, do: ./interrutps <your_input_file.txt>" << std::endl;
         return -1;
     }
 
-    //Open the input file
+    // Open the input file
     auto file_name = argv[1];
     std::ifstream input_file;
     input_file.open(file_name);
 
-    //Ensure that the file actually opens
+    // Ensure that the file actually opens
     if (!input_file.is_open()) {
         std::cerr << "Error: Unable to open file: " << file_name << std::endl;
         return -1;
     }
 
-    //Parse the entire input file and populate a vector of PCBs.
-    //To do so, the add_process() helper function is used (see include file).
+    // Parse the entire input file and populate a vector of PCBs.
+    // To do so, the add_process() helper function is used (see include file).
     std::string line;
     std::vector<PCB> list_process;
     while(std::getline(input_file, line)) {
@@ -187,7 +186,7 @@ int main(int argc, char** argv) {
     }
     input_file.close();
 
-    //With the list of processes, run the simulation
+    // With the list of processes, run the simulation
     auto [exec] = run_simulation(list_process);
 
     write_output(exec, "execution.txt");
