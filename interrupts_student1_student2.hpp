@@ -18,6 +18,7 @@
 #include<sstream>
 #include<iomanip>
 #include<algorithm>
+static const unsigned int NO_IO = 999999999;   // to indicate "no IO scheduled"
 
 //An enumeration of states to make assignment easier
 enum states {
@@ -65,6 +66,11 @@ struct PCB{
     enum states     state;
     unsigned int    io_freq;
     unsigned int    io_duration;
+	int             priority;               // for EP scheduling
+    unsigned int    next_io_time;           // next IO interrupt time or NO_IO
+    unsigned int    time_in_current_quantum;
+    unsigned int    response_time;
+    bool            response_recorded;
 };
 
 //------------------------------------HELPER FUNCTIONS FOR THE SIMULATOR------------------------------
@@ -269,6 +275,11 @@ PCB add_process(std::vector<std::string> tokens) {
     process.start_time = -1;
     process.partition_number = -1;
     process.state = NOT_ASSIGNED;
+	process.priority = process.PID % 5;
+    process.next_io_time = (process.io_freq > 0 ? process.io_freq : NO_IO);
+    process.time_in_current_quantum = 0;
+    process.response_time = 0;
+    process.response_recorded = false;
 
     return process;
 }
